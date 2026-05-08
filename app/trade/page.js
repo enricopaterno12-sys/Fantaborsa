@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useLeague } from '@/app/components/LeagueContext'
 
 function formatCash(n) {
   if (n == null || Number.isNaN(Number(n))) return '—'
@@ -24,10 +25,10 @@ async function fetchQuote(ticker) {
 
 export default function TradePage() {
   const router = useRouter()
+  const { activeLeagueId, activeLeagueName, loading: leagueLoading } = useLeague()
   const [user, setUser] = useState(null)
   const [portfolios, setPortfolios] = useState([])
   const [selectedPortfolioId, setSelectedPortfolioId] = useState('')
-  const [cashRemaining, setCashRemaining] = useState(null)
 
   const [tickerInput, setTickerInput] = useState('')
   const [quote, setQuote] = useState(null)
@@ -63,26 +64,26 @@ export default function TradePage() {
       setUser(u)
       if (u) loadPortfolios(u.id)
     })
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const u = session?.user ?? null
       setUser(u)
       if (u) loadPortfolios(u.id)
       else {
         setPortfolios([])
         setSelectedPortfolioId('')
-        setCashRemaining(null)
       }
     })
     return () => subscription.unsubscribe()
   }, [loadPortfolios])
 
   useEffect(() => {
-    const p = portfolios.find((x) => x.id === selectedPortfolioId)
-    if (p) setCashRemaining(p.cash_remaining)
-    else setCashRemaining(null)
-  }, [selectedPortfolioId, portfolios])
+    const p = portfolios.find((x) => x.league_id === activeLeagueId)
+    if (p) {
+      setSelectedPortfolioId(p.id)
+    } else if (portfolios.length > 0) {
+      setSelectedPortfolioId(portfolios[0].id)
+    }
+  }, [activeLeagueId, portfolios])
 
   const refreshCash = async (portfolioId) => {
     const { data, error: e } = await supabase
@@ -91,7 +92,6 @@ export default function TradePage() {
       .eq('id', portfolioId)
       .single()
     if (!e && data) {
-      setCashRemaining(data.cash_remaining)
       setPortfolios((prev) =>
         prev.map((row) =>
           row.id === portfolioId
@@ -154,9 +154,12 @@ export default function TradePage() {
 
     setTradeLoading(true)
     try {
+      console.log('DEBUG: Inizio procedura trade BUY...')
+
       let price
       try {
-        ;({ price } = await fetchQuote(sym))
+        const result = await fetchQuote(sym)
+        price = result.price
       } catch (err) {
         throw new Error(err.message || 'Impossibile ottenere il prezzo aggiornato.')
       }
@@ -165,7 +168,7 @@ export default function TradePage() {
 
       const { data: portfolio, error: pErr } = await supabase
         .from('portfolios')
-        .select('id, cash_remaining, user_id')
+        .select('id, cash_remaining, user_id, league_id')
         .eq('id', selectedPortfolioId)
         .eq('user_id', user.id)
         .single()
@@ -173,6 +176,14 @@ export default function TradePage() {
       if (pErr || !portfolio) {
         throw new Error(pErr?.message || 'Portfolio non trovato.')
       }
+
+      console.log('DEBUG Dati BUY:', {
+        userId: user?.id,
+        leagueId: portfolio.league_id,
+        ticker: sym,
+        quantity: shares,
+        price: price,
+      })
 
       const cash = Number(portfolio.cash_remaining)
       if (cash < cost) {
@@ -200,8 +211,7 @@ export default function TradePage() {
         const oldShares = Number(existing.shares)
         const oldAvg = Number(existing.avg_buy_price)
         const newShares = oldShares + shares
-        const newAvg =
-          (oldShares * oldAvg + shares * price) / newShares
+        const newAvg = (oldShares * oldAvg + shares * price) / newShares
         const { error: upErr } = await supabase
           .from('positions')
           .update({
@@ -234,10 +244,36 @@ export default function TradePage() {
         }
       }
 
-      setQuote((q) => (q ? { ...q, price } : { ticker: sym, price }))
+      // INSERIMENTO TRANSAZIONE BLINDATO
+      const txPayload = {
+        user_id: user.id,
+        league_id: portfolio.league_id,
+        ticker: sym,
+        type: 'BUY',
+        quantity: shares,
+        price: price,
+        timestamp: new Date().toISOString(),
+      }
+
+      console.log('DEBUG Payload transazione:', JSON.stringify(txPayload))
+
+      const { data: txData, error: txError } = await supabase
+        .from('transactions')
+        .insert([txPayload])
+        .select()
+
+      if (txError) {
+        console.error('❌ ERRORE SUPABASE TRANSACTIONS:', txError.message, txError.details)
+      } else {
+        console.log('✅ TRANSAZIONE SALVATA CON SUCCESSO:', txData)
+        window.dispatchEvent(new CustomEvent('transaction_updated'))
+      }
+
+      setQuote({ ticker: sym, price })
       await refreshCash(portfolio.id)
       setMessage(`Acquistate ${shares} azioni ${sym} a ${formatCash(price)}.`)
     } catch (err) {
+      console.error('Buy error:', err)
       setError(err.message)
     } finally {
       setTradeLoading(false)
@@ -268,16 +304,19 @@ export default function TradePage() {
 
     setTradeLoading(true)
     try {
+      console.log('DEBUG: Inizio procedura trade SELL...')
+
       let price
       try {
-        ;({ price } = await fetchQuote(sym))
+        const result = await fetchQuote(sym)
+        price = result.price
       } catch (err) {
         throw new Error(err.message || 'Impossibile ottenere il prezzo aggiornato.')
       }
 
       const { data: portfolio, error: pErr } = await supabase
         .from('portfolios')
-        .select('id, cash_remaining, user_id')
+        .select('id, cash_remaining, user_id, league_id')
         .eq('id', selectedPortfolioId)
         .eq('user_id', user.id)
         .single()
@@ -304,7 +343,17 @@ export default function TradePage() {
       }
 
       const proceeds = price * shares
+      const avgBuyPrice = Number(existing.avg_buy_price)
       const cash = Number(portfolio.cash_remaining)
+
+      console.log('DEBUG Dati SELL:', {
+        userId: user?.id,
+        leagueId: portfolio.league_id,
+        ticker: sym,
+        quantity: shares,
+        price: price,
+        avgBuyPrice: avgBuyPrice,
+      })
 
       const { error: cashErr } = await supabase
         .from('portfolios')
@@ -341,15 +390,43 @@ export default function TradePage() {
         }
       }
 
-      setQuote((q) => (q ? { ...q, price } : { ticker: sym, price }))
+      // INSERIMENTO TRANSAZIONE BLINDATO
+      const txPayload = {
+        user_id: user.id,
+        league_id: portfolio.league_id,
+        ticker: sym,
+        type: 'SELL',
+        quantity: shares,
+        price: price,
+        timestamp: new Date().toISOString(),
+      }
+
+      console.log('DEBUG Payload transazione:', JSON.stringify(txPayload))
+
+      const { data: txData, error: txError } = await supabase
+        .from('transactions')
+        .insert([txPayload])
+        .select()
+
+      if (txError) {
+        console.error('❌ ERRORE SUPABASE TRANSACTIONS:', txError.message, txError.details)
+      } else {
+        console.log('✅ TRANSAZIONE SALVATA CON SUCCESSO:', txData)
+        window.dispatchEvent(new CustomEvent('transaction_updated'))
+      }
+
+      setQuote({ ticker: sym, price })
       await refreshCash(portfolio.id)
       setMessage(`Vendute ${shares} azioni ${sym} a ${formatCash(price)}.`)
     } catch (err) {
+      console.error('Sell error:', err)
       setError(err.message)
     } finally {
       setTradeLoading(false)
     }
   }
+
+  const cashRemaining = portfolios.find(p => p.id === selectedPortfolioId)?.cash_remaining ?? null
 
   if (!user) {
     return (
@@ -364,10 +441,6 @@ export default function TradePage() {
     )
   }
 
-  const selectedPortfolio = portfolios.find(
-    (p) => p.id === selectedPortfolioId
-  )
-
   return (
     <div className="min-h-screen bg-gray-100 py-10 px-4">
       <div className="mx-auto max-w-lg space-y-6">
@@ -376,46 +449,30 @@ export default function TradePage() {
         </h1>
 
         <section className="rounded-lg bg-white p-6 shadow-md">
-          <label
-            htmlFor="portfolio"
-            className="mb-1 block text-sm font-medium text-gray-700"
-          >
-            Portfolio
-          </label>
-          <select
-            id="portfolio"
-            value={selectedPortfolioId}
-            onChange={(e) => setSelectedPortfolioId(e.target.value)}
-            className="mb-4 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {portfolios.length === 0 ? (
-              <option value="">Nessun portfolio — unisciti a una lega</option>
-            ) : (
-              portfolios.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {(p.leagues?.name || `Lega ${p.league_id?.slice(0, 8) ?? p.id}`) +
-                    ` — ${formatCash(p.cash_remaining)}`}
-                </option>
-              ))
-            )}
-          </select>
+          <div className="mb-4">
+            <span className="mb-1 block text-sm font-medium text-gray-700">Lega attiva</span>
+            <div 
+              className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm"
+              style={{ background: '#f9fafb', color: activeLeagueName ? '#059669' : '#6b7280' }}
+            >
+              {leagueLoading ? 'Caricamento...' : (activeLeagueName || 'Nessuna lega selezionata')}
+            </div>
+          </div>
+          {!activeLeagueId && !leagueLoading && (
+            <button
+              type="button"
+              onClick={() => router.push('/leagues')}
+              className="mt-2 w-full rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-sm transition hover:bg-emerald-100"
+            >
+              Seleziona una lega
+            </button>
+          )}
           <p className="text-sm text-gray-600">
             Cash disponibile:{' '}
             <span className="font-semibold text-gray-900">
               {formatCash(cashRemaining)}
             </span>
           </p>
-          {selectedPortfolioId && selectedPortfolio?.league_id && (
-            <button
-              type="button"
-              onClick={() =>
-                router.push(`/leagues/${selectedPortfolio.league_id}`)
-              }
-              className="mt-4 w-full rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-900 shadow-sm transition hover:bg-blue-100"
-            >
-              Vai alla classifica
-            </button>
-          )}
         </section>
 
         <section className="rounded-lg bg-white p-6 shadow-md">

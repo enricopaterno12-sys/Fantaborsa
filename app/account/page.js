@@ -3,17 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { UserCircle, Mail, LogOut, Save } from 'lucide-react'
 
 function initialUsernameInput(user, profileUsername) {
   if (profileUsername) return profileUsername
   const m = user?.user_metadata
-  return (
-    m?.username ||
-    m?.preferred_username ||
-    m?.full_name ||
-    m?.name ||
-    ''
-  )
+  return m?.username || m?.preferred_username || m?.full_name || m?.name || ''
 }
 
 export default function AccountPage() {
@@ -30,48 +25,27 @@ export default function AccountPage() {
     let cancelled = false
 
     async function loadProfile(uid) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('id', uid)
-        .maybeSingle()
-      if (!cancelled) {
-        setProfileUsername(data?.username ?? null)
-      }
+      const { data } = await supabase.from('profiles').select('username').eq('id', uid).maybeSingle()
+      if (!cancelled) setProfileUsername(data?.username ?? null)
     }
 
     supabase.auth.getUser().then(async ({ data: { user: u } }) => {
       if (cancelled) return
-      if (!u) {
-        router.replace('/login')
-        setLoading(false)
-        return
-      }
+      if (!u) { router.replace('/login'); setLoading(false); return }
       setUser(u)
       await loadProfile(u.id)
       if (!cancelled) setLoading(false)
     })
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       if (cancelled) return
       const next = session?.user ?? null
-      if (!next) {
-        router.replace('/login')
-        setUser(null)
-        setProfileUsername(null)
-        setLoading(false)
-        return
-      }
+      if (!next) { router.replace('/login'); setUser(null); setProfileUsername(null); setLoading(false); return }
       setUser(next)
       loadProfile(next.id)
     })
 
-    return () => {
-      cancelled = true
-      subscription.unsubscribe()
-    }
+    return () => { cancelled = true; subscription.unsubscribe() }
   }, [router])
 
   useEffect(() => {
@@ -80,25 +54,15 @@ export default function AccountPage() {
   }, [loading, user?.id, profileUsername])
 
   const handleSaveUsername = async () => {
-    setSaveMessage(null)
-    setSaveError(null)
+    setSaveMessage(null); setSaveError(null)
     const name = usernameInput.trim()
-    if (!name) {
-      setSaveError('Lo username non può essere vuoto.')
-      return
-    }
+    if (!name) { setSaveError('Lo username non può essere vuoto.'); return }
     setSaveLoading(true)
-    const { error } = await supabase
-      .from('profiles')
-      .update({ username: name })
-      .eq('id', user.id)
+    const { error } = await supabase.from('profiles').update({ username: name }).eq('id', user.id)
     setSaveLoading(false)
-    if (error) {
-      setSaveError(error.message)
-      return
-    }
+    if (error) { setSaveError(error.message); return }
     setProfileUsername(name)
-    setSaveMessage('Username aggiornato.')
+    setSaveMessage('Username aggiornato con successo.')
   }
 
   const handleLogout = async () => {
@@ -108,62 +72,83 @@ export default function AccountPage() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen bg-gray-100 py-10 px-4">
-        <div className="mx-auto max-w-md rounded-lg bg-white p-8 text-center shadow-md">
-          <p className="text-sm text-gray-600">Caricamento…</p>
+      <main className="fb-page" style={{ maxWidth: 520 }}>
+        <div className="fb-card" style={{ textAlign: 'center', padding: 48 }}>
+          <p style={{ color: 'var(--fb-text-muted)', fontSize: 14 }}>Caricamento…</p>
         </div>
-      </div>
+      </main>
     )
   }
 
+  const displayName = profileUsername || user.email?.split('@')[0] || 'Utente'
+  const initials = displayName.slice(0, 2).toUpperCase()
+
   return (
-    <div className="min-h-screen bg-gray-100 py-10 px-4">
-      <div className="mx-auto max-w-md rounded-lg bg-white p-8 shadow-md">
-        <h1 className="mb-6 text-center text-2xl font-semibold text-gray-800">
-          Account
-        </h1>
+    <main className="fb-page" style={{ maxWidth: 520 }}>
+      <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--fb-text)', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <UserCircle size={22} color="var(--fb-emerald)" strokeWidth={2} /> Account
+      </h1>
 
-        <dl className="space-y-4 text-sm">
-          <div>
-            <dt className="font-medium text-gray-600">Email</dt>
-            <dd className="mt-1 text-gray-900">{user.email ?? '—'}</dd>
+      {/* Avatar + name card */}
+      <div className="fb-card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 18 }}>
+        <div style={{
+          width: 56, height: 56, borderRadius: '50%',
+          background: 'var(--fb-emerald-light)', color: 'var(--fb-emerald)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontWeight: 700, fontSize: 18, flexShrink: 0,
+        }}>
+          {initials}
+        </div>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--fb-text)' }}>{displayName}</div>
+          <div style={{ fontSize: 13, color: 'var(--fb-text-muted)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
+            <Mail size={13} /> {user.email ?? '—'}
           </div>
-          <div>
-            <dt className="mb-1 font-medium text-gray-600">Username</dt>
-            <dd className="mt-1">
-              <input
-                type="text"
-                value={usernameInput}
-                onChange={(e) => setUsernameInput(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                autoComplete="username"
-              />
-            </dd>
-            {saveError && (
-              <p className="mt-2 text-sm text-red-600">{saveError}</p>
-            )}
-            {saveMessage && (
-              <p className="mt-2 text-sm text-green-600">{saveMessage}</p>
-            )}
-            <button
-              type="button"
-              onClick={handleSaveUsername}
-              disabled={saveLoading}
-              className="mt-3 w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-60"
-            >
-              {saveLoading ? 'Salvataggio…' : 'Salva'}
-            </button>
-          </div>
-        </dl>
+        </div>
+      </div>
 
+      {/* Edit username */}
+      <div className="fb-card" style={{ marginBottom: 16 }}>
+        <h2 className="fb-section-title" style={{ marginBottom: 16 }}>Username</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label className="fb-label" htmlFor="username-input">Nome visualizzato</label>
+            <input
+              id="username-input"
+              type="text"
+              value={usernameInput}
+              onChange={(e) => setUsernameInput(e.target.value)}
+              className="fb-input"
+              autoComplete="username"
+            />
+          </div>
+          {saveError && <p className="fb-msg-err">{saveError}</p>}
+          {saveMessage && <p className="fb-msg-ok">{saveMessage}</p>}
+          <button
+            type="button"
+            onClick={handleSaveUsername}
+            disabled={saveLoading}
+            className="fb-btn fb-btn--primary fb-btn--full"
+          >
+            <Save size={15} />
+            {saveLoading ? 'Salvataggio…' : 'Salva modifiche'}
+          </button>
+        </div>
+      </div>
+
+      {/* Logout */}
+      <div className="fb-card">
+        <h2 className="fb-section-title" style={{ marginBottom: 14 }}>Sessione</h2>
         <button
           type="button"
           onClick={handleLogout}
-          className="mt-8 w-full rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-gray-900"
+          className="fb-btn fb-btn--secondary fb-btn--full"
+          style={{ justifyContent: 'center', gap: 8 }}
         >
+          <LogOut size={15} />
           Logout
         </button>
       </div>
-    </div>
+    </main>
   )
 }

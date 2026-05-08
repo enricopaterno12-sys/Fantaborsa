@@ -1,26 +1,607 @@
 @import "tailwindcss";
 
+/* ============================================================
+   FANTABORSA – Design Tokens
+   ============================================================ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --fb-bg: #f8fafc;
+  --fb-surface: #ffffff;
+  --fb-border: #e2e8f0;
+  --fb-text: #1e293b;
+  --fb-text-muted: #64748b;
+  --fb-text-faint: #94a3b8;
+  --fb-emerald: #10b981;
+  --fb-emerald-dark: #059669;
+  --fb-emerald-light: #d1fae5;
+  --fb-red: #ef4444;
+  --fb-red-light: #fee2e2;
+  --fb-radius-card: 20px;
+  --fb-shadow: 0 1px 4px 0 rgba(30,41,59,0.07);
+  --fb-shadow-md: 0 4px 16px 0 rgba(30,41,59,0.10);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--fb-bg);
+  color: var(--fb-text);
+  font-family: var(--font-inter, 'Inter', system-ui, -apple-system, sans-serif);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================================
+   NAVBAR
+   ============================================================ */
+.fb-navbar {
+  background: var(--fb-surface);
+  border-bottom: 1px solid var(--fb-border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.fb-navbar-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.fb-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.fb-brand-icon {
+  width: 32px;
+  height: 32px;
+  background: var(--fb-emerald);
+  color: #fff;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.fb-brand-name {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--fb-text);
+  letter-spacing: -0.3px;
+}
+
+.fb-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.fb-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--fb-text-muted);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.fb-nav-link:hover {
+  background: var(--fb-bg);
+  color: var(--fb-text);
+}
+
+.fb-nav-link--active {
+  color: var(--fb-emerald);
+  background: var(--fb-emerald-light);
+}
+
+.fb-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.fb-icon-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--fb-text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.fb-icon-btn:hover {
+  background: var(--fb-bg);
+  color: var(--fb-text);
+}
+
+/* ============================================================
+   CARDS & LAYOUT
+   ============================================================ */
+.fb-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 24px 48px;
+}
+
+.fb-card {
+  background: var(--fb-surface);
+  border: 1px solid var(--fb-border);
+  border-radius: var(--fb-radius-card);
+  padding: 24px;
+  box-shadow: var(--fb-shadow);
+}
+
+/* ============================================================
+   BALANCE CARD
+   ============================================================ */
+.fb-balance-card {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: var(--fb-radius-card);
+  padding: 28px 32px;
+  color: #fff;
+  box-shadow: 0 8px 32px 0 rgba(16,185,129,0.28);
+}
+
+.fb-balance-label {
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.85;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.fb-balance-value {
+  font-size: 38px;
+  font-weight: 700;
+  letter-spacing: -1.5px;
+  line-height: 1.1;
+  margin-bottom: 10px;
+}
+
+.fb-balance-gain {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0.92;
+}
+
+/* ============================================================
+   QUICK ACTIONS
+   ============================================================ */
+.fb-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.fb-quick-action-card {
+  background: var(--fb-surface);
+  border: 1px solid var(--fb-border);
+  border-radius: var(--fb-radius-card);
+  padding: 20px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  box-shadow: var(--fb-shadow);
+  transition: box-shadow 0.18s, transform 0.18s;
+}
+
+.fb-quick-action-card:hover {
+  box-shadow: var(--fb-shadow-md);
+  transform: translateY(-2px);
+}
+
+.fb-quick-action-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fb-quick-action-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fb-text);
+}
+
+/* ============================================================
+   SECTION HEADERS
+   ============================================================ */
+.fb-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.fb-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--fb-text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fb-link-sm {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fb-emerald);
+  text-decoration: none;
+}
+
+.fb-link-sm:hover {
+  text-decoration: underline;
+}
+
+/* ============================================================
+   CHART
+   ============================================================ */
+.fb-chart-container {
+  overflow: hidden;
+}
+
+.fb-chart-container svg text {
+  font-family: 'Inter', sans-serif;
+}
+
+/* ============================================================
+   ASSET LIST
+   ============================================================ */
+.fb-asset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fb-asset-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fb-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.fb-asset-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fb-asset-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--fb-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fb-asset-ticker {
+  font-size: 11.5px;
+  color: var(--fb-text-faint);
+  font-weight: 500;
+}
+
+.fb-asset-price-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.fb-asset-price {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--fb-text);
+}
+
+/* ============================================================
+   CHANGE BADGES
+   ============================================================ */
+.fb-change {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fb-change--pos { color: var(--fb-emerald); }
+.fb-change--neg { color: var(--fb-red); }
+
+/* ============================================================
+   TRANSACTIONS
+   ============================================================ */
+.fb-tx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fb-tx-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fb-tx-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fb-tx-icon--buy {
+  background: var(--fb-emerald-light);
+  color: var(--fb-emerald);
+}
+
+.fb-tx-icon--sell {
+  background: var(--fb-red-light);
+  color: var(--fb-red);
+}
+
+.fb-tx-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fb-tx-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--fb-text);
+}
+
+.fb-tx-date {
+  font-size: 11.5px;
+  color: var(--fb-text-faint);
+}
+
+.fb-tx-amount-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.fb-tx-amount {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.fb-tx-amount--pos { color: var(--fb-emerald); }
+.fb-tx-amount--neg { color: var(--fb-red); }
+
+.fb-tx-detail {
+  font-size: 11.5px;
+  color: var(--fb-text-faint);
+}
+
+/* ============================================================
+   LEAGUE RANKING
+   ============================================================ */
+.fb-rank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fb-rank-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  transition: background 0.12s;
+}
+
+.fb-rank-row:hover { background: var(--fb-bg); }
+
+.fb-rank-row--me {
+  background: #f0fdf8 !important;
+  border: 1px solid var(--fb-emerald-light);
+}
+
+.fb-rank-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.fb-rank-badge--plain {
+  background: var(--fb-bg);
+  color: var(--fb-text-muted);
+}
+
+.fb-rank-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.fb-rank-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--fb-text);
+}
+
+.fb-rank-balance {
+  font-size: 11.5px;
+  color: var(--fb-text-faint);
+}
+
+/* ============================================================
+   SKELETON LOADER
+   ============================================================ */
+.fb-skeleton {
+  display: block;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  border-radius: 6px;
+  animation: fb-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes fb-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ============================================================
+   FORM / BUTTON UTILITIES
+   ============================================================ */
+.fb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s, transform 0.12s, box-shadow 0.15s;
+}
+
+.fb-btn:active { transform: scale(0.98); }
+.fb-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.fb-btn--primary {
+  background: var(--fb-emerald);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(16,185,129,0.25);
+}
+
+.fb-btn--primary:hover:not(:disabled) {
+  background: var(--fb-emerald-dark);
+  box-shadow: 0 4px 14px rgba(16,185,129,0.35);
+}
+
+.fb-btn--secondary {
+  background: var(--fb-bg);
+  color: var(--fb-text-muted);
+  border: 1px solid var(--fb-border);
+}
+
+.fb-btn--secondary:hover:not(:disabled) {
+  background: var(--fb-border);
+  color: var(--fb-text);
+}
+
+.fb-btn--danger {
+  background: var(--fb-red-light);
+  color: var(--fb-red);
+  border: 1px solid #fecaca;
+}
+
+.fb-btn--danger:hover:not(:disabled) {
+  background: #fecaca;
+}
+
+.fb-btn--full { width: 100%; }
+
+.fb-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--fb-border);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--fb-surface);
+  color: var(--fb-text);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.fb-input:focus {
+  border-color: var(--fb-emerald);
+  box-shadow: 0 0 0 3px rgba(16,185,129,0.12);
+}
+
+.fb-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fb-text-muted);
+  margin-bottom: 6px;
+}
+
+.fb-msg-ok {
+  font-size: 13px;
+  color: var(--fb-emerald);
+  font-weight: 500;
+}
+
+.fb-msg-err {
+  font-size: 13px;
+  color: var(--fb-red);
+  font-weight: 500;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 768px) {
+  .fb-quick-actions { grid-template-columns: repeat(2, 1fr); }
+  .fb-nav-links { display: none; }
+  .fb-balance-value { font-size: 28px; }
 }
